@@ -10,8 +10,7 @@ const router = express.Router();
 
 router.post("/", createStore);
 router.get("/", getStores);
-router.post("/:id/sync", syncStore);
 router.post("/oauth/callback", saveOAuthStore);
+router.post("/:id/sync", syncStore);
 
 export default router;
-

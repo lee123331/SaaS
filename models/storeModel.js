@@ -11,7 +11,7 @@ export const createStore = async (store) => {
   return {
     id: result.insertId,
     shopName,
-    shopDomain
+    shopDomain,
   };
 };
 

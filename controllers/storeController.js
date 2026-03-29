@@ -6,13 +6,13 @@ export const createStore = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      store
+      store,
     });
   } catch (error) {
     console.error("createStore error:", error);
     res.status(500).json({
       success: false,
-      message: "스토어 등록 중 오류가 발생했습니다."
+      message: "스토어 등록 중 오류가 발생했습니다.",
     });
   }
 };
@@ -23,13 +23,13 @@ export const getStores = async (req, res) => {
 
     res.json({
       success: true,
-      stores
+      stores,
     });
   } catch (error) {
     console.error("getStores error:", error);
     res.status(500).json({
       success: false,
-      message: "스토어 조회 중 오류가 발생했습니다."
+      message: "스토어 조회 중 오류가 발생했습니다.",
     });
   }
 };
@@ -54,12 +54,13 @@ export const saveOAuthStore = async (req, res) => {
     res.status(201).json({
       success: true,
       store,
+      message: "OAuth 스토어 저장 완료",
     });
   } catch (error) {
-    console.error("OAuth save error:", error);
+    console.error("saveOAuthStore error:", error);
     res.status(500).json({
       success: false,
-      message: "OAuth 저장 실패",
+      message: "OAuth 스토어 저장 중 오류가 발생했습니다.",
     });
   }
 };
