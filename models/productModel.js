@@ -1,54 +1,41 @@
 import db from "../config/db.js";
 
-export const upsertProduct = async ({
+export const upsertFromShopify = async ({
   storeId,
   shopifyProductId,
+  shopifyVariantId,
   title,
   sku,
   stock,
+  status,
 }) => {
-  await db.query(
+  const [result] = await db.query(
     `
-    INSERT INTO products (store_id, shopify_product_id, title, sku, stock)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO products (
+      store_id,
+      shopify_product_id,
+      shopify_variant_id,
+      title,
+      sku,
+      stock,
+      status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
     ON DUPLICATE KEY UPDATE
       title = VALUES(title),
       sku = VALUES(sku),
-      stock = VALUES(stock)
+      stock = VALUES(stock),
+      status = VALUES(status)
     `,
-    [storeId, shopifyProductId, title, sku, stock]
-  );
-};
-
-export const getAllProducts = async () => {
-  const [rows] = await db.query(
-    `
-    SELECT
-      id,
-      title AS name,
+    [
+      storeId,
+      shopifyProductId,
+      shopifyVariantId,
+      title,
       sku,
       stock,
-      shopify_product_id AS shopifyProductId
-    FROM products
-    ORDER BY id DESC
-    `
+      status,
+    ]
   );
-  return rows;
-};
 
-export const getProductById = async (id) => {
-  const [rows] = await db.query(
-    `
-    SELECT
-      id,
-      title AS name,
-      sku,
-      stock,
-      shopify_product_id AS shopifyProductId
-    FROM products
-    WHERE id = ?
-    `,
-    [id]
-  );
-  return rows[0] || null;
+  return result;
 };

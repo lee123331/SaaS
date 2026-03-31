@@ -1,32 +1,80 @@
 import db from "../config/db.js";
 
 export const createStore = async (store) => {
-  const { shopName, shopDomain, accessToken } = store;
+  const {
+    shop_name = null,
+    shop_domain,
+    access_token,
+  } = store;
 
   const [result] = await db.query(
-    "INSERT INTO stores (shop_name, shop_domain, access_token) VALUES (?, ?, ?)",
-    [shopName, shopDomain, accessToken]
+    `
+    INSERT INTO stores (
+      shop_name,
+      shop_domain,
+      access_token
+    ) VALUES (?, ?, ?)
+    `,
+    [shop_name, shop_domain, access_token]
   );
 
-  return {
-    id: result.insertId,
-    shopName,
-    shopDomain,
-  };
+  return result;
 };
 
 export const getStores = async () => {
-  const [rows] = await db.query(
-    "SELECT id, shop_name AS shopName, shop_domain AS shopDomain, created_at AS createdAt FROM stores"
-  );
+  const [rows] = await db.query(`
+    SELECT *
+    FROM stores
+    ORDER BY id DESC
+  `);
+
   return rows;
 };
 
 export const getStoreById = async (id) => {
   const [rows] = await db.query(
-    "SELECT id, shop_name AS shopName, shop_domain AS shopDomain, access_token AS accessToken FROM stores WHERE id = ?",
+    `
+    SELECT *
+    FROM stores
+    WHERE id = ?
+    LIMIT 1
+    `,
     [id]
   );
 
-  return rows[0] || null;
+  return rows[0];
+};
+
+export const getStoreByShopDomain = async (shopDomain) => {
+  const [rows] = await db.query(
+    `
+    SELECT *
+    FROM stores
+    WHERE shop_domain = ?
+    LIMIT 1
+    `,
+    [shopDomain]
+  );
+
+  return rows[0];
+};
+
+export const updateStoreByShopDomain = async (shopDomain, payload) => {
+  const {
+    shop_name = null,
+    access_token,
+  } = payload;
+
+  const [result] = await db.query(
+    `
+    UPDATE stores
+    SET
+      shop_name = ?,
+      access_token = ?
+    WHERE shop_domain = ?
+    `,
+    [shop_name, access_token, shopDomain]
+  );
+
+  return result;
 };
