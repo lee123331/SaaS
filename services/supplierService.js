@@ -1,142 +1,134 @@
-// services/supplierService.js
-import axios from "axios";
+import * as supplierModel from "../models/supplierModel.js";
+
+export const createSupplier = async (payload) => {
+  if (!payload?.name) {
+    throw new Error("공급처명은 필수입니다.");
+  }
+
+  const result = await supplierModel.createSupplier(payload);
+  return await supplierModel.getSupplierById(result.insertId);
+};
+
+export const getSuppliers = async () => {
+  return await supplierModel.getSuppliers();
+};
+
+export const getSupplierById = async (id) => {
+  return await supplierModel.getSupplierById(id);
+};
+
+export const updateSupplierById = async (id, payload) => {
+  const existing = await supplierModel.getSupplierById(id);
+  if (!existing) {
+    throw new Error("공급처를 찾을 수 없습니다.");
+  }
+
+  await supplierModel.updateSupplierById(id, payload);
+  return await supplierModel.getSupplierById(id);
+};
+
+export const saveSupplierConnection = async (supplierId, configJson) => {
+  console.log("[supplierService.saveSupplierConnection] supplierId:", supplierId);
+  console.log("[supplierService.saveSupplierConnection] configJson:", configJson);
+
+  const existing = await supplierModel.getSupplierById(supplierId);
+  if (!existing) {
+    throw new Error("공급처를 찾을 수 없습니다.");
+  }
+
+  const normalizedConfig =
+    configJson && typeof configJson === "object" ? configJson : {};
+
+  await supplierModel.upsertSupplierConnection(supplierId, normalizedConfig);
+
+  const savedConnection = await supplierModel.getSupplierConnection(supplierId);
+
+  console.log(
+    "[supplierService.saveSupplierConnection] savedConnection:",
+    savedConnection
+  );
+
+  return savedConnection;
+};
+
+export const getSupplierConnection = async (supplierId) => {
+  const existing = await supplierModel.getSupplierById(supplierId);
+  if (!existing) {
+    throw new Error("공급처를 찾을 수 없습니다.");
+  }
+
+  return await supplierModel.getSupplierConnection(supplierId);
+};
+
+export const createSupplierProductMapping = async (supplierId, payload) => {
+  const existing = await supplierModel.getSupplierById(supplierId);
+  if (!existing) {
+    throw new Error("공급처를 찾을 수 없습니다.");
+  }
+
+  if (!payload?.productId) {
+    throw new Error("productId는 필수입니다.");
+  }
+
+  const result = await supplierModel.createSupplierProductMapping({
+    supplierId,
+    ...payload,
+  });
+
+  const mappings = await supplierModel.getSupplierProductMappings(supplierId);
+
+  return {
+    insertId: result.insertId,
+    mappings,
+  };
+};
+
+export const getSupplierProductMappings = async (supplierId) => {
+  const existing = await supplierModel.getSupplierById(supplierId);
+  if (!existing) {
+    throw new Error("공급처를 찾을 수 없습니다.");
+  }
+
+  return await supplierModel.getSupplierProductMappings(supplierId);
+};
+
+export const createOrderDraft = async (supplierId) => {
+  const supplier = await supplierModel.getSupplierById(supplierId);
+  if (!supplier) {
+    throw new Error("공급처를 찾을 수 없습니다.");
+  }
+
+  const mappings = await supplierModel.getSupplierProductMappings(supplierId);
+
+  return {
+    supplier: {
+      id: supplier.id,
+      name: supplier.name,
+      integrationType: supplier.integrationType,
+      contactEmail: supplier.contactEmail,
+    },
+    itemCount: mappings.length,
+    items: mappings.map((item) => ({
+      productId: item.productId,
+      supplierSku: item.supplierSku,
+      supplierProductName: item.supplierProductName,
+      minOrderQty: item.minOrderQty,
+      leadTimeDays: item.leadTimeDays,
+    })),
+    message: "발주 초안 생성 완료",
+  };
+};
 
 const SupplierService = {
-  parseJsonField(field) {
-    if (!field) return null;
-    if (typeof field === "object") return field;
-
-    try {
-      return JSON.parse(field);
-    } catch (error) {
-      return null;
-    }
-  },
-
-  buildRequestUrl(supplier) {
-    const baseUrl = (supplier.apiBaseUrl || "").replace(/\/$/, "");
-    const endpoint = (supplier.orderEndpoint || "").replace(/^\//, "");
-    return `${baseUrl}/${endpoint}`;
-  },
-
-  buildHeaders(supplier) {
-    const headers = {
-      "Content-Type": "application/json",
-    };
-
-    const defaultHeaders = this.parseJsonField(supplier.defaultHeaders);
-    if (defaultHeaders && typeof defaultHeaders === "object") {
-      Object.assign(headers, defaultHeaders);
-    }
-
-    switch (supplier.authType) {
-      case "apiKey":
-        headers["x-api-key"] = supplier.apiKey;
-        break;
-
-      case "bearer":
-        headers["Authorization"] = `Bearer ${supplier.apiKey}`;
-        break;
-
-      case "basic": {
-        const encoded = Buffer.from(
-          `${supplier.apiKey}:${supplier.apiSecret || ""}`
-        ).toString("base64");
-        headers["Authorization"] = `Basic ${encoded}`;
-        break;
-      }
-
-      case "none":
-      default:
-        break;
-    }
-
-    return headers;
-  },
-
-  buildOrderPayload({ order, supplier }) {
-    const template = this.parseJsonField(supplier.payloadTemplate);
-
-    if (template) {
-      const raw = JSON.stringify(template)
-        .replace(/\{\{productId\}\}/g, String(order.productId || ""))
-        .replace(/\{\{productName\}\}/g, String(order.productName || ""))
-        .replace(/\{\{supplierProductCode\}\}/g, String(order.supplierProductCode || ""))
-        .replace(/\{\{approvedQty\}\}/g, String(order.approvedQty || order.recommendedQty || 0))
-        .replace(/\{\{recommendedQty\}\}/g, String(order.recommendedQty || 0))
-        .replace(/\{\{note\}\}/g, String(order.note || ""));
-
-      try {
-        return JSON.parse(raw);
-      } catch (error) {
-        throw new Error("공급처 payloadTemplate JSON 형식이 올바르지 않습니다.");
-      }
-    }
-
-    return {
-      productId: order.productId,
-      productName: order.productName,
-      supplierProductCode: order.supplierProductCode,
-      quantity: order.approvedQty || order.recommendedQty,
-      note: order.note || "자동 발주 시스템 생성 주문",
-    };
-  },
-
-  normalizeSupplierResponse(response) {
-    const data = response?.data || {};
-
-    return {
-      success: true,
-      responseStatus: response.status,
-      responseBody: data,
-      supplierOrderId: data.orderId || data.supplierOrderId || data.id || null,
-      externalStatus: data.status || "ordered",
-    };
-  },
-
-  async sendOrderToSupplier({ supplier, order }) {
-    if (!supplier) {
-      throw new Error("공급처 정보가 없습니다.");
-    }
-
-    if (supplier.status !== "active") {
-      throw new Error("비활성화된 공급처입니다.");
-    }
-
-    const requestUrl = this.buildRequestUrl(supplier);
-    const headers = this.buildHeaders(supplier);
-    const payload = this.buildOrderPayload({ order, supplier });
-
-    try {
-      const response = await axios.post(requestUrl, payload, {
-        headers,
-        timeout: 10000,
-      });
-
-      const normalized = this.normalizeSupplierResponse(response);
-
-      return {
-        success: true,
-        requestUrl,
-        requestHeaders: headers,
-        requestBody: payload,
-        responseStatus: normalized.responseStatus,
-        responseBody: normalized.responseBody,
-        supplierOrderId: normalized.supplierOrderId,
-        externalStatus: normalized.externalStatus,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        requestUrl,
-        requestHeaders: headers,
-        requestBody: payload,
-        responseStatus: error.response?.status || null,
-        responseBody: error.response?.data || null,
-        errorMessage: error.message,
-      };
-    }
-  },
+  createSupplier,
+  getSuppliers,
+  getSupplierById,
+  updateSupplierById,
+  saveSupplierConnection,
+  getSupplierConnection,
+  createSupplierProductMapping,
+  getSupplierProductMappings,
+  createOrderDraft,
 };
 
 export default SupplierService;

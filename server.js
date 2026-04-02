@@ -7,29 +7,44 @@ import alertRoutes from "./routes/alertRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import storeRoutes from "./routes/storeRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import supplierRoutes from "./routes/supplierRoutes.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 
-const allowedOrigins = [
+const allowedExactOrigins = [
   "https://refundos01.vercel.app",
+  "https://refundos32890.vercel.app",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
 
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+
+  if (allowedExactOrigins.includes(origin)) {
+    return true;
+  }
+
+  // Vercel 프리뷰/배포 도메인 전체 허용
+  if (origin.endsWith(".vercel.app")) {
+    return true;
+  }
+
+  return false;
+};
+
 app.use(
   cors({
     origin(origin, callback) {
-      // 브라우저가 아닌 요청이나 same-origin 요청 허용
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
+      if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
 
-      return callback(new Error(`CORS not allowed for origin: ${origin}`));
+      console.error("Blocked by CORS:", origin);
+      return callback(null, false);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -37,8 +52,6 @@ app.use(
     optionsSuccessStatus: 204,
   })
 );
-
-app.options("*", cors());
 
 app.use(express.json());
 
@@ -51,19 +64,12 @@ app.use("/alerts", alertRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/store", storeRoutes);
 app.use("/orders", orderRoutes);
+app.use("/suppliers", supplierRoutes);
 
-// CORS / 서버 에러 공통 처리
 app.use((err, req, res, next) => {
   console.error("Server error:", err);
-
-  if (err.message?.startsWith("CORS not allowed")) {
-    return res.status(403).json({
-      message: err.message,
-    });
-  }
-
   return res.status(500).json({
-    message: "Internal server error",
+    message: err.message || "Internal server error",
   });
 });
 
