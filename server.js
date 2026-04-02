@@ -28,7 +28,6 @@ const isAllowedOrigin = (origin) => {
     return true;
   }
 
-  // Vercel 프리뷰/배포 도메인 전체 허용
   if (origin.endsWith(".vercel.app")) {
     return true;
   }
@@ -36,22 +35,29 @@ const isAllowedOrigin = (origin) => {
   return false;
 };
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (isAllowedOrigin(origin)) {
-        return callback(null, true);
-      }
+const corsOptions = {
+  origin(origin, callback) {
+    if (isAllowedOrigin(origin)) {
+      return callback(null, true);
+    }
 
-      console.error("Blocked by CORS:", origin);
-      return callback(null, false);
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: false,
-    optionsSuccessStatus: 204,
-  })
-);
+    console.error("Blocked by CORS:", origin);
+    return callback(null, false);
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: false,
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+
+// preflight 명시 허용
+app.options("/store/oauth/callback", cors(corsOptions));
+app.options("/dashboard/metrics", cors(corsOptions));
+app.options("/alerts", cors(corsOptions));
+app.options("/products", cors(corsOptions));
+app.options("/orders/approve", cors(corsOptions));
 
 app.use(express.json());
 
