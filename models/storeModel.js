@@ -78,3 +78,14 @@ export const updateStoreByShopDomain = async (shopDomain, payload) => {
 
   return result;
 };
+export const deleteStoreById = async (id) => {
+  const [result] = await db.query(
+    `
+    DELETE FROM stores
+    WHERE id = ?
+    `,
+    [id]
+  );
+
+  return result;
+};

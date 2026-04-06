@@ -39,3 +39,25 @@ export const upsertFromShopify = async ({
 
   return result;
 };
+
+export const getAllProducts = async () => {
+  const [rows] = await db.query(`
+    SELECT *
+    FROM products
+    ORDER BY id DESC
+  `);
+
+  return rows;
+};
+
+export const deleteByStoreId = async (storeId) => {
+  const [result] = await db.query(
+    `
+    DELETE FROM products
+    WHERE store_id = ?
+    `,
+    [storeId]
+  );
+
+  return result;
+};

@@ -72,6 +72,49 @@ export const exchangeOfflineToken = async ({ shop, sessionToken }) => {
   }
 };
 
+/**
+ * OAuth authorization code grant 방식
+ * GET /store/oauth/callback 에서 받은 code로 access token 교환
+ */
+export const exchangeAuthorizationCodeToken = async ({ shop, code }) => {
+  if (!shop || !validateShopDomain(shop)) {
+    throw new Error("유효한 shop 도메인이 아닙니다.");
+  }
+
+  if (!code) {
+    throw new Error("authorization code가 없습니다.");
+  }
+
+  if (!process.env.SHOPIFY_API_KEY || !process.env.SHOPIFY_API_SECRET) {
+    throw new Error("SHOPIFY_API_KEY 또는 SHOPIFY_API_SECRET 환경변수가 없습니다.");
+  }
+
+  try {
+    const { data } = await axios.post(
+      `https://${shop}/admin/oauth/access_token`,
+      {
+        client_id: process.env.SHOPIFY_API_KEY,
+        client_secret: process.env.SHOPIFY_API_SECRET,
+        code,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    const message = error?.response?.data
+      ? JSON.stringify(error.response.data)
+      : error.message;
+
+    throw new Error(`Shopify authorization code 토큰 교환 실패: ${message}`);
+  }
+};
+
 export const fetchShopInfo = async ({ shop, accessToken }) => {
   const query = `
     query {
@@ -111,6 +154,36 @@ export const fetchShopInfo = async ({ shop, accessToken }) => {
 
 export const connectShopifyStore = async ({ shop, sessionToken }) => {
   const tokenData = await exchangeOfflineToken({ shop, sessionToken });
+  const accessToken = tokenData?.access_token;
+
+  if (!accessToken) {
+    throw new Error("Shopify access token을 받지 못했습니다.");
+  }
+
+  const shopInfo = await fetchShopInfo({ shop, accessToken });
+
+  const existingStore = await storeModel.getStoreByShopDomain(shop);
+
+  const storePayload = {
+    shop_name: shopInfo?.name || null,
+    shop_domain: shop,
+    access_token: accessToken,
+  };
+
+  if (existingStore) {
+    await storeModel.updateStoreByShopDomain(shop, storePayload);
+    return await storeModel.getStoreByShopDomain(shop);
+  }
+
+  const result = await storeModel.createStore(storePayload);
+  return await storeModel.getStoreById(result.insertId);
+};
+
+/**
+ * GET callback용 최종 연결 함수
+ */
+export const connectShopifyStoreByCode = async ({ shop, code }) => {
+  const tokenData = await exchangeAuthorizationCodeToken({ shop, code });
   const accessToken = tokenData?.access_token;
 
   if (!accessToken) {
@@ -246,5 +319,20 @@ export const syncStoreProducts = async (storeId) => {
     storeId: store.id,
     shopDomain: store.shop_domain,
     syncedCount,
+  };
+};
+export const deleteStore = async (storeId) => {
+  const store = await storeModel.getStoreById(storeId);
+
+  if (!store) {
+    throw new Error("스토어를 찾을 수 없습니다.");
+  }
+
+  await productModel.deleteByStoreId(storeId);
+  await storeModel.deleteStoreById(storeId);
+
+  return {
+    storeId,
+    shopDomain: store.shop_domain,
   };
 };
