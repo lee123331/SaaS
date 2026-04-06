@@ -5,7 +5,7 @@ export const getProducts = async () => {
 
   return products.map((product) => ({
     id: product.id,
-    name: product.name,
+    name: product.title,
     sku: product.sku,
     stock: product.stock,
     avgDailySales: 0,
@@ -21,7 +21,7 @@ export const getProductDetail = async (id) => {
 
   return {
     id: product.id,
-    name: product.name,
+    name: product.title,
     sku: product.sku,
     stock: product.stock,
     avgDailySales: 0,

@@ -61,3 +61,16 @@ export const deleteByStoreId = async (storeId) => {
 
   return result;
 };
+export const getProductById = async (id) => {
+  const [rows] = await db.query(
+    `
+    SELECT *
+    FROM products
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [id]
+  );
+
+  return rows[0];
+};
