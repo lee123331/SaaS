@@ -219,6 +219,9 @@ export const fetchProductsFromShopify = async ({ shop, accessToken }) => {
             id
             title
             status
+            featuredImage {
+              url
+            }
             variants(first: 100) {
               edges {
                 node {
@@ -309,6 +312,7 @@ export const syncStoreProducts = async (storeId) => {
         sku: variant.sku || null,
         stock: Number(variant.inventoryQuantity || 0),
         status: product.status || null,
+        imageUrl: product.featuredImage?.url || null,
       });
 
       syncedCount += 1;
@@ -321,6 +325,7 @@ export const syncStoreProducts = async (storeId) => {
     syncedCount,
   };
 };
+
 export const deleteStore = async (storeId) => {
   const store = await storeModel.getStoreById(storeId);
 
