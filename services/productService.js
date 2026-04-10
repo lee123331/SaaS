@@ -1,6 +1,5 @@
 import * as productModel from "../models/productModel.js";
 
-console.log("[productService] productModel exports:", Object.keys(productModel));
 export const getProducts = async () => {
   const products = await productModel.getAllProducts();
 
@@ -9,13 +8,13 @@ export const getProducts = async () => {
     name: product.title,
     sku: product.sku,
     stock: product.stock,
+    imageUrl: product.image_url || null,
     avgDailySales: 0,
     expectedOutOfStockDays: 0,
     status: product.stock <= 10 ? "warning" : "safe",
   }));
 };
 
-console.log("[productService] typeof getProductById:", typeof productModel.getProductById);
 export const getProductDetail = async (id) => {
   const product = await productModel.getProductById(id);
 
@@ -26,6 +25,7 @@ export const getProductDetail = async (id) => {
     name: product.title,
     sku: product.sku,
     stock: product.stock,
+    imageUrl: product.image_url || null,
     avgDailySales: 0,
     salesLast7Days: 0,
     salesLast30Days: 0,
