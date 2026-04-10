@@ -1,5 +1,6 @@
 import * as productModel from "../models/productModel.js";
 
+console.log("[productService] productModel exports:", Object.keys(productModel));
 export const getProducts = async () => {
   const products = await productModel.getAllProducts();
 
@@ -14,6 +15,7 @@ export const getProducts = async () => {
   }));
 };
 
+console.log("[productService] typeof getProductById:", typeof productModel.getProductById);
 export const getProductDetail = async (id) => {
   const product = await productModel.getProductById(id);
 
