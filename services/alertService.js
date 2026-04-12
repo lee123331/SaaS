@@ -1,6 +1,3 @@
-console.log("[alertService] products:", products);
-console.log("[alertService] generated alerts:", alerts);
-
 import * as productModel from "../models/productModel.js";
 
 const DEFAULT_SAFETY_STOCK = 10;
@@ -41,6 +38,9 @@ export const getAlerts = async () => {
       };
     })
     .filter(Boolean);
+
+  console.log("[alertService] products:", products);
+  console.log("[alertService] generated alerts:", alerts);
 
   return { alerts };
 };

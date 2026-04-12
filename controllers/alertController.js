@@ -1,10 +1,11 @@
-console.log("[alertController] result:", result);
-
 import * as alertService from "../services/alertService.js";
 
 export const getAlerts = async (req, res) => {
   try {
     const result = await alertService.getAlerts();
+
+    console.log("[alertController] result:", result);
+
     res.status(200).json(result);
   } catch (error) {
     console.error("getAlerts error:", error);
