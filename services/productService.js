@@ -30,6 +30,9 @@ export const getProductDetail = async (id) => {
     salesLast7Days: 0,
     salesLast30Days: 0,
     expectedOutOfStockDays: 0,
+    leadTimeDays: 0,
+    safetyStock: 0,
+    recommendedOrderQty: 0,
     status: product.stock <= 10 ? "warning" : "safe",
   };
 };

@@ -211,34 +211,34 @@ export const connectShopifyStoreByCode = async ({ shop, code }) => {
 
 export const fetchProductsFromShopify = async ({ shop, accessToken }) => {
   const query = `
-    query GetProducts($cursor: String) {
-      products(first: 100, after: $cursor) {
-        edges {
-          cursor
-          node {
-            id
-            title
-            status
-            featuredImage {
-              url
-            }
-            variants(first: 100) {
-              edges {
-                node {
-                  id
-                  sku
-                  inventoryQuantity
-                }
+  query GetProducts($cursor: String) {
+    products(first: 100, after: $cursor) {
+      edges {
+        cursor
+        node {
+          id
+          title
+          status
+          featuredImage {
+            url
+          }
+          variants(first: 100) {
+            edges {
+              node {
+                id
+                sku
+                inventoryQuantity
               }
             }
           }
         }
-        pageInfo {
-          hasNextPage
-        }
+      }
+      pageInfo {
+        hasNextPage
       }
     }
-  `;
+  }
+`;
 
   let cursor = null;
   let hasNextPage = true;
@@ -304,16 +304,16 @@ export const syncStoreProducts = async (storeId) => {
     for (const variantEdge of variants) {
       const variant = variantEdge.node;
 
-      await productModel.upsertFromShopify({
-        storeId: store.id,
-        shopifyProductId: parseShopifyGidToNumber(product.id),
-        shopifyVariantId: parseShopifyGidToNumber(variant.id),
-        title: product.title,
-        sku: variant.sku || null,
-        stock: Number(variant.inventoryQuantity || 0),
-        status: product.status || null,
-        imageUrl: product.featuredImage?.url || null,
-      });
+await productModel.upsertFromShopify({
+  storeId: store.id,
+  shopifyProductId: parseShopifyGidToNumber(product.id),
+  shopifyVariantId: parseShopifyGidToNumber(variant.id),
+  title: product.title,
+  sku: variant.sku || null,
+  stock: Number(variant.inventoryQuantity || 0),
+  status: product.status || null,
+  imageUrl: product.featuredImage?.url || null,
+});
 
       syncedCount += 1;
     }
