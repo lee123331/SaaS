@@ -14,7 +14,6 @@ const OrderModel = {
     responsePayload = null,
     supplierOrderId = null,
     externalStatus = null,
-    orderDate = null,
   }) {
     const [result] = await db.query(
       `
@@ -29,9 +28,8 @@ const OrderModel = {
         requestedPayload,
         responsePayload,
         supplierOrderId,
-        externalStatus,
-        orderDate
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        externalStatus
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         productId,
@@ -45,31 +43,30 @@ const OrderModel = {
         responsePayload ? JSON.stringify(responsePayload) : null,
         supplierOrderId,
         externalStatus,
-        orderDate,
       ]
     );
 
     return result;
   },
 
-async getAllOrders() {
-  const [rows] = await db.query(`
-    SELECT
-      po.*,
-      p.title AS productName,
-      p.stock,
-      p.minStock,
-      p.targetStock,
-      p.supplierProductCode,
-      s.name AS supplierName
-    FROM purchase_orders po
-    JOIN products p ON po.productId = p.id
-    LEFT JOIN suppliers s ON po.supplierId = s.id
-    ORDER BY po.createdAt DESC
-  `);
+  async getAllOrders() {
+    const [rows] = await db.query(`
+      SELECT
+        po.*,
+        p.title AS productName,
+        p.stock,
+        p.minStock,
+        p.targetStock,
+        p.supplierProductCode,
+        s.name AS supplierName
+      FROM purchase_orders po
+      JOIN products p ON po.productId = p.id
+      LEFT JOIN suppliers s ON po.supplierId = s.id
+      ORDER BY po.createdAt DESC
+    `);
 
-  return rows;
-},
+    return rows;
+  },
 
   async getOrderById(orderId) {
     const [rows] = await db.query(
