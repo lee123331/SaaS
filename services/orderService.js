@@ -1,4 +1,3 @@
-// services/orderService.js
 import db from "../config/db.js";
 import OrderModel from "../models/orderModel.js";
 import SupplierModel from "../models/supplierModel.js";
@@ -122,17 +121,17 @@ const OrderService = {
     }
 
     const [rows] = await db.query(
-  `
-  SELECT
-    id,
-    title,
-    stock
-  FROM products
-  WHERE id = ?
-  LIMIT 1
-  `,
-  [productId]
-);
+      `
+      SELECT
+        id,
+        title,
+        stock
+      FROM products
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [productId]
+    );
 
     const product = rows[0];
 
@@ -140,9 +139,27 @@ const OrderService = {
       throw new Error("상품을 찾을 수 없습니다.");
     }
 
+    const supplierMapping =
+      await SupplierModel.getSupplierProductMappingByProductId(productId);
+
+    if (!supplierMapping) {
+      throw new Error("공급처 상품 매핑이 없어 발주를 승인할 수 없습니다.");
+    }
+
+    const supplierConnection =
+      await SupplierModel.getActiveSupplierConnectionByProductId(productId);
+
+    if (!supplierConnection || !supplierConnection.supplierId) {
+      throw new Error("공급처 연결이 완료되지 않아 발주를 승인할 수 없습니다.");
+    }
+
+    if (supplierConnection.supplierStatus !== "active") {
+      throw new Error("공급처가 비활성 상태라 발주를 승인할 수 없습니다.");
+    }
+
     const result = await OrderModel.createOrder({
       productId: product.id,
-      supplierId: null,
+      supplierId: supplierConnection.supplierId,
       recommendedQty: quantity,
       status: "approved",
       note: "프론트 수동 발주 생성",
@@ -153,6 +170,8 @@ const OrderService = {
       productId: product.id,
       productName: product.title,
       quantity,
+      supplierId: supplierConnection.supplierId,
+      supplierName: supplierConnection.supplierName,
       status: "approved",
     };
   },
