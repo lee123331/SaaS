@@ -122,18 +122,17 @@ const OrderService = {
     }
 
     const [rows] = await db.query(
-      `
-      SELECT
-        id,
-        title,
-        stock,
-        supplierId
-      FROM products
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [productId]
-    );
+  `
+  SELECT
+    id,
+    title,
+    stock
+  FROM products
+  WHERE id = ?
+  LIMIT 1
+  `,
+  [productId]
+);
 
     const product = rows[0];
 
@@ -143,7 +142,7 @@ const OrderService = {
 
     const result = await OrderModel.createOrder({
       productId: product.id,
-      supplierId: product.supplierId || null,
+      supplierId: null,
       recommendedQty: quantity,
       status: "approved",
       note: "프론트 수동 발주 생성",
