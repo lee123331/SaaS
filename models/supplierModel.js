@@ -199,9 +199,6 @@ export const updateSupplierById = async (id, payload) => {
 };
 
 export const upsertSupplierConnection = async (supplierId, configJson = {}) => {
-  console.log("[supplierModel.upsertSupplierConnection] supplierId:", supplierId);
-  console.log("[supplierModel.upsertSupplierConnection] configJson:", configJson);
-
   const [existing] = await db.query(
     `
     SELECT *
@@ -210,11 +207,6 @@ export const upsertSupplierConnection = async (supplierId, configJson = {}) => {
     LIMIT 1
     `,
     [supplierId]
-  );
-
-  console.log(
-    "[supplierModel.upsertSupplierConnection] existing:",
-    existing[0] || null
   );
 
   if (existing[0]) {
@@ -229,7 +221,6 @@ export const upsertSupplierConnection = async (supplierId, configJson = {}) => {
       [toJsonString(configJson), supplierId]
     );
 
-    console.log("[supplierModel.upsertSupplierConnection] update result:", result);
     return result;
   }
 
@@ -243,7 +234,6 @@ export const upsertSupplierConnection = async (supplierId, configJson = {}) => {
     [supplierId, toJsonString(configJson)]
   );
 
-  console.log("[supplierModel.upsertSupplierConnection] insert result:", result);
   return result;
 };
 
@@ -309,6 +299,44 @@ export const getSupplierProductMappings = async (supplierId) => {
   return rows;
 };
 
+export const getSupplierProductMappingByProductId = async (productId) => {
+  const [rows] = await db.query(
+    `
+    SELECT *
+    FROM supplier_product_mappings
+    WHERE productId = ?
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+    [productId]
+  );
+
+  return rows[0];
+};
+
+export const getActiveSupplierConnectionByProductId = async (productId) => {
+  const [rows] = await db.query(
+    `
+    SELECT
+      spm.*,
+      s.id AS supplierId,
+      s.name AS supplierName,
+      s.status AS supplierStatus,
+      s.connectionStatus,
+      sc.configJson
+    FROM supplier_product_mappings spm
+    JOIN suppliers s ON spm.supplierId = s.id
+    LEFT JOIN supplier_connections sc ON sc.supplierId = s.id
+    WHERE spm.productId = ?
+    ORDER BY spm.id DESC
+    LIMIT 1
+    `,
+    [productId]
+  );
+
+  return normalizeConnectionRow(rows[0]);
+};
+
 const SupplierModel = {
   createSupplier,
   getSuppliers,
@@ -318,6 +346,8 @@ const SupplierModel = {
   getSupplierConnection,
   createSupplierProductMapping,
   getSupplierProductMappings,
+  getSupplierProductMappingByProductId,
+  getActiveSupplierConnectionByProductId,
 };
 
 export default SupplierModel;
