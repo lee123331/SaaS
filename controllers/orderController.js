@@ -59,6 +59,36 @@ const OrderController = {
     }
   },
 
+  async createApprovedOrder(req, res) {
+    try {
+      const { product_id, quantity } = req.body;
+
+      if (!product_id || !quantity) {
+        return res.status(400).json({
+          success: false,
+          message: "product_id와 quantity가 필요합니다.",
+        });
+      }
+
+      const result = await OrderService.createApprovedOrder({
+        productId: Number(product_id),
+        quantity: Number(quantity),
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "발주 생성 완료",
+        order: result,
+      });
+    } catch (error) {
+      console.error("[createApprovedOrder error]", error);
+      return res.status(400).json({
+        success: false,
+        message: error.message || "발주 생성 중 오류가 발생했습니다.",
+      });
+    }
+  },
+
   async sendOrderToSupplier(req, res) {
     try {
       const { id } = req.params;

@@ -7,19 +7,19 @@ import SupplierService from "./supplierService.js";
 
 const OrderService = {
   async generateOrdersFromLowStock() {
-   const [products] = await db.query(`
-  SELECT
-    id,
-    title AS name,
-    stock,
-    minStock,
-    targetStock,
-    supplierId,
-    supplierProductCode,
-    leadTimeDays
-  FROM products
-  ORDER BY id DESC
-`);
+    const [products] = await db.query(`
+      SELECT
+        id,
+        title AS name,
+        stock,
+        minStock,
+        targetStock,
+        supplierId,
+        supplierProductCode,
+        leadTimeDays
+      FROM products
+      ORDER BY id DESC
+    `);
 
     const createdOrders = [];
     const skippedProducts = [];
@@ -109,6 +109,52 @@ const OrderService = {
       orderId: Number(orderId),
       status: "approved",
       approvedQty: finalApprovedQty,
+    };
+  },
+
+  async createApprovedOrder({ productId, quantity }) {
+    if (!Number.isInteger(productId) || productId <= 0) {
+      throw new Error("유효한 product_id가 필요합니다.");
+    }
+
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      throw new Error("quantity는 1 이상의 정수여야 합니다.");
+    }
+
+    const [rows] = await db.query(
+      `
+      SELECT
+        id,
+        title,
+        stock,
+        supplierId
+      FROM products
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [productId]
+    );
+
+    const product = rows[0];
+
+    if (!product) {
+      throw new Error("상품을 찾을 수 없습니다.");
+    }
+
+    const result = await OrderModel.createOrder({
+      productId: product.id,
+      supplierId: product.supplierId || null,
+      recommendedQty: quantity,
+      status: "approved",
+      note: "프론트 수동 발주 생성",
+    });
+
+    return {
+      orderId: result.insertId,
+      productId: product.id,
+      productName: product.title,
+      quantity,
+      status: "approved",
     };
   },
 
