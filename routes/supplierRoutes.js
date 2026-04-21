@@ -8,10 +8,17 @@ import {
   getSupplierConnection,
   createSupplierProductMapping,
   getSupplierProductMappings,
+  getRecommendedSuppliers,
+  confirmSupplierMapping,
+  getConfirmedSupplierMappingByVariant,
   createOrderDraft,
 } from "../controllers/supplierController.js";
 
 const router = express.Router();
+
+router.get("/recommend", getRecommendedSuppliers);
+router.post("/mappings/confirm", confirmSupplierMapping);
+router.get("/mappings/by-variant/:variantId", getConfirmedSupplierMappingByVariant);
 
 router.post("/", createSupplier);
 router.get("/", getSuppliers);

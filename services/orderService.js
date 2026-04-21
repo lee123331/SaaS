@@ -2,7 +2,7 @@ import db from "../config/db.js";
 import OrderModel from "../models/orderModel.js";
 import SupplierModel from "../models/supplierModel.js";
 import ReorderService from "./reorderService.js";
-import SupplierService from "./supplierService.js";
+import * as SupplierService from "./supplierService.js";
 
 const OrderService = {
   async generateOrdersFromLowStock() {
@@ -102,12 +102,41 @@ const OrderService = {
       throw new Error("approvedQty는 1 이상의 정수여야 합니다.");
     }
 
-    await OrderModel.updateOrderStatus(orderId, "approved", finalApprovedQty, null);
+    const supplierMapping =
+      await SupplierModel.getSupplierProductMappingByProductId(order.productId);
+
+    if (!supplierMapping) {
+      throw new Error("공급처 상품 매핑이 없어 발주를 승인할 수 없습니다.");
+    }
+
+    if (supplierMapping.mappingStatus !== "confirmed") {
+      throw new Error("공급처 연결이 확정되지 않아 발주를 승인할 수 없습니다.");
+    }
+
+    const supplierConnection =
+      await SupplierModel.getActiveSupplierConnectionByProductId(order.productId);
+
+    if (!supplierConnection || !supplierConnection.supplierId) {
+      throw new Error("공급처 연결이 완료되지 않아 발주를 승인할 수 없습니다.");
+    }
+
+    if (supplierConnection.supplierStatus !== "active") {
+      throw new Error("공급처가 비활성 상태라 발주를 승인할 수 없습니다.");
+    }
+
+    await OrderModel.updateOrderStatus(
+      orderId,
+      "approved",
+      finalApprovedQty,
+      null
+    );
 
     return {
       orderId: Number(orderId),
       status: "approved",
       approvedQty: finalApprovedQty,
+      supplierId: supplierConnection.supplierId,
+      supplierName: supplierConnection.supplierName,
     };
   },
 
@@ -144,6 +173,10 @@ const OrderService = {
 
     if (!supplierMapping) {
       throw new Error("공급처 상품 매핑이 없어 발주를 승인할 수 없습니다.");
+    }
+
+    if (supplierMapping.mappingStatus !== "confirmed") {
+      throw new Error("공급처 연결이 확정되지 않아 발주를 승인할 수 없습니다.");
     }
 
     const supplierConnection =

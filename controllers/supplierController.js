@@ -102,6 +102,46 @@ export const getSupplierProductMappings = async (req, res) => {
   }
 };
 
+export const getRecommendedSuppliers = async (req, res) => {
+  try {
+    const result = await supplierService.getRecommendedSuppliersByVariantId(
+      Number(req.query.variantId)
+    );
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("getRecommendedSuppliers error:", error);
+    res.status(500).json({
+      message: error.message || "공급처 추천 조회 실패",
+    });
+  }
+};
+
+export const confirmSupplierMapping = async (req, res) => {
+  try {
+    const result = await supplierService.confirmSupplierMapping(req.body);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("confirmSupplierMapping error:", error);
+    res.status(500).json({
+      message: error.message || "공급처 확정 실패",
+    });
+  }
+};
+
+export const getConfirmedSupplierMappingByVariant = async (req, res) => {
+  try {
+    const result = await supplierService.getConfirmedSupplierByVariantId(
+      Number(req.params.variantId)
+    );
+    res.status(200).json(result || null);
+  } catch (error) {
+    console.error("getConfirmedSupplierMappingByVariant error:", error);
+    res.status(500).json({
+      message: error.message || "자동 연결 조회 실패",
+    });
+  }
+};
+
 export const createOrderDraft = async (req, res) => {
   try {
     const result = await supplierService.createOrderDraft(Number(req.params.id));

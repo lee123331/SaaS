@@ -90,6 +90,29 @@ export const getProductById = async (id) => {
   return rows[0] || null;
 };
 
+export const getProductByVariantId = async (variantId) => {
+  const sql = `
+    SELECT
+      id,
+      store_id,
+      shopify_product_id,
+      shopify_variant_id,
+      title,
+      sku,
+      stock,
+      status,
+      image_url,
+      created_at,
+      updated_at
+    FROM products
+    WHERE shopify_variant_id = ?
+    LIMIT 1
+  `;
+
+  const [rows] = await db.execute(sql, [variantId]);
+  return rows[0] || null;
+};
+
 export const deleteByStoreId = async (storeId) => {
   const sql = `DELETE FROM products WHERE store_id = ?`;
   const [result] = await db.execute(sql, [storeId]);

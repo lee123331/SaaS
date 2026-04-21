@@ -123,6 +123,20 @@ export const getSupplierById = async (id) => {
   return normalizeSupplierRow(rows[0]);
 };
 
+export const getSupplierBasicById = async (supplierId) => {
+  const [rows] = await db.query(
+    `
+    SELECT id, name, status
+    FROM suppliers
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [supplierId]
+  );
+
+  return rows[0] || null;
+};
+
 export const updateSupplierById = async (id, payload) => {
   const current = await getSupplierById(id);
   if (!current) return null;
@@ -255,10 +269,16 @@ export const createSupplierProductMapping = async (payload) => {
   const {
     supplierId,
     productId,
+    internalProductId = productId,
+    internalVariantId,
+    internalSku = null,
     supplierSku = null,
     supplierProductName = null,
     minOrderQty = null,
-    leadTimeDays = null,
+    mappingStatus = "suggested",
+    source = "manual",
+    confidenceScore = 0,
+    reason = null,
   } = payload;
 
   const [result] = await db.query(
@@ -266,19 +286,31 @@ export const createSupplierProductMapping = async (payload) => {
     INSERT INTO supplier_product_mappings (
       supplierId,
       productId,
+      internalProductId,
+      internalVariantId,
+      internalSku,
       supplierSku,
       supplierProductName,
       minOrderQty,
-      leadTimeDays
-    ) VALUES (?, ?, ?, ?, ?, ?)
+      mappingStatus,
+      source,
+      confidenceScore,
+      reason
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       supplierId,
       productId,
+      internalProductId,
+      internalVariantId,
+      internalSku,
       supplierSku,
       supplierProductName,
       minOrderQty,
-      leadTimeDays,
+      mappingStatus,
+      source,
+      confidenceScore,
+      reason,
     ]
   );
 
@@ -311,7 +343,126 @@ export const getSupplierProductMappingByProductId = async (productId) => {
     [productId]
   );
 
-  return rows[0];
+  return rows[0] || null;
+};
+
+export const getConfirmedMappingByVariantId = async (variantId) => {
+  const [rows] = await db.query(
+    `
+    SELECT
+      spm.*,
+      s.name AS supplierName
+    FROM supplier_product_mappings spm
+    JOIN suppliers s ON spm.supplierId = s.id
+    WHERE spm.internalVariantId = ?
+      AND spm.mappingStatus = 'confirmed'
+    ORDER BY spm.updatedAt DESC
+    LIMIT 1
+    `,
+    [variantId]
+  );
+
+  return rows[0] || null;
+};
+
+export const getSupplierRecommendationByPurchaseHistory = async (productId) => {
+  const [rows] = await db.query(
+    `
+    SELECT
+      po.supplierId,
+      s.name AS supplierName,
+      COUNT(*) AS orderCount,
+      MAX(po.created_at) AS lastOrderedAt
+    FROM purchase_orders po
+    JOIN suppliers s ON po.supplierId = s.id
+    WHERE po.productId = ?
+      AND po.supplierId IS NOT NULL
+    GROUP BY po.supplierId, s.name
+    ORDER BY orderCount DESC, lastOrderedAt DESC
+    `,
+    [productId]
+  );
+
+  return rows;
+};
+
+export const upsertConfirmedSupplierMapping = async ({
+  supplierId,
+  internalProductId,
+  internalVariantId,
+  internalSku,
+  productId,
+  source = "manual",
+  confidenceScore = 100,
+  reason = "confirmed by user",
+}) => {
+  const [existingRows] = await db.query(
+    `
+    SELECT id
+    FROM supplier_product_mappings
+    WHERE internalVariantId = ?
+      AND supplierId = ?
+    LIMIT 1
+    `,
+    [internalVariantId, supplierId]
+  );
+
+  if (existingRows[0]) {
+    const [result] = await db.query(
+      `
+      UPDATE supplier_product_mappings
+      SET
+        internalProductId = ?,
+        internalSku = ?,
+        productId = ?,
+        mappingStatus = 'confirmed',
+        source = ?,
+        confidenceScore = ?,
+        reason = ?,
+        updatedAt = NOW()
+      WHERE id = ?
+      `,
+      [
+        internalProductId,
+        internalSku,
+        productId,
+        source,
+        confidenceScore,
+        reason,
+        existingRows[0].id,
+      ]
+    );
+
+    return { type: "updated", id: existingRows[0].id, result };
+  }
+
+  const [result] = await db.query(
+    `
+    INSERT INTO supplier_product_mappings (
+      supplierId,
+      productId,
+      internalProductId,
+      internalVariantId,
+      internalSku,
+      mappingStatus,
+      source,
+      confidenceScore,
+      reason
+    ) VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?, ?)
+    `,
+    [
+      supplierId,
+      productId,
+      internalProductId,
+      internalVariantId,
+      internalSku,
+      source,
+      confidenceScore,
+      reason,
+    ]
+  );
+
+  return { type: "created", id: result.insertId, result };
 };
 
 export const getActiveSupplierConnectionByProductId = async (productId) => {
@@ -328,6 +479,7 @@ export const getActiveSupplierConnectionByProductId = async (productId) => {
     JOIN suppliers s ON spm.supplierId = s.id
     LEFT JOIN supplier_connections sc ON sc.supplierId = s.id
     WHERE spm.productId = ?
+      AND spm.mappingStatus = 'confirmed'
     ORDER BY spm.id DESC
     LIMIT 1
     `,
@@ -336,17 +488,20 @@ export const getActiveSupplierConnectionByProductId = async (productId) => {
 
   return normalizeConnectionRow(rows[0]);
 };
-
 const SupplierModel = {
   createSupplier,
   getSuppliers,
   getSupplierById,
+  getSupplierBasicById,
   updateSupplierById,
   upsertSupplierConnection,
   getSupplierConnection,
   createSupplierProductMapping,
   getSupplierProductMappings,
   getSupplierProductMappingByProductId,
+  getConfirmedMappingByVariantId,
+  getSupplierRecommendationByPurchaseHistory,
+  upsertConfirmedSupplierMapping,
   getActiveSupplierConnectionByProductId,
 };
 
