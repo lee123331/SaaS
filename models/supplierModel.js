@@ -474,6 +474,8 @@ export const getActiveSupplierConnectionByProductId = async (productId) => {
       s.name AS supplierName,
       s.status AS supplierStatus,
       s.connectionStatus,
+      sc.id AS supplierConnectionId,
+      sc.supplierId AS connectedSupplierId,
       sc.configJson
     FROM supplier_product_mappings spm
     JOIN suppliers s ON spm.supplierId = s.id

@@ -116,9 +116,9 @@ const OrderService = {
     const supplierConnection =
       await SupplierModel.getActiveSupplierConnectionByProductId(order.productId);
 
-    if (!supplierConnection || !supplierConnection.supplierId) {
-      throw new Error("공급처 연결이 완료되지 않아 발주를 승인할 수 없습니다.");
-    }
+    if (!supplierConnection || !supplierConnection.connectedSupplierId) {
+  throw new Error("공급처 연결 설정이 완료되지 않아 발주를 승인할 수 없습니다.");
+}
 
     if (supplierConnection.supplierStatus !== "active") {
       throw new Error("공급처가 비활성 상태라 발주를 승인할 수 없습니다.");
