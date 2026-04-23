@@ -121,14 +121,39 @@ export const getRecommendedSuppliersByVariantId = async (variantId) => {
   const poRecommendations =
     await supplierModel.getSupplierRecommendationByPurchaseHistory(product.id);
 
-  const recommendations = poRecommendations.map((item) => ({
-    supplier_id: item.supplierId,
-    supplier_name: item.supplierName,
-    confidence_score: 70,
-    source: "po_history",
-    reason: "matched by purchase order history",
-    mapping_status: "suggested",
-  }));
+  const vendorRecommendations = product.vendor
+    ? await supplierModel.getSupplierRecommendationsByVendor(product.vendor)
+    : [];
+
+  const merged = new Map();
+
+  for (const item of poRecommendations) {
+    merged.set(item.supplierId, {
+      supplier_id: item.supplierId,
+      supplier_name: item.supplierName,
+      confidence_score: 70,
+      source: "po_history",
+      reason: "matched by purchase order history",
+      mapping_status: "suggested",
+    });
+  }
+
+  for (const item of vendorRecommendations) {
+    if (!merged.has(item.id)) {
+      merged.set(item.id, {
+        supplier_id: item.id,
+        supplier_name: item.name,
+        confidence_score: 40,
+        source: "vendor",
+        reason: "matched Shopify vendor",
+        mapping_status: "suggested",
+      });
+    }
+  }
+
+  const recommendations = Array.from(merged.values()).sort(
+    (a, b) => b.confidence_score - a.confidence_score
+  );
 
   return {
     variant_id: Number(variantId),

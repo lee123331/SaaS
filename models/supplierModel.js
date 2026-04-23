@@ -386,6 +386,29 @@ export const getSupplierRecommendationByPurchaseHistory = async (productId) => {
   return rows;
 };
 
+export const getSupplierRecommendationsByVendor = async (vendor) => {
+  if (!vendor) return [];
+
+  const normalizedVendor = vendor.trim().toLowerCase();
+
+  const [rows] = await db.query(
+    `
+    SELECT
+      id,
+      name,
+      apiBaseUrl
+    FROM suppliers
+    WHERE LOWER(name) = ?
+       OR LOWER(name) LIKE CONCAT('%', ?, '%')
+       OR LOWER(apiBaseUrl) LIKE CONCAT('%', ?, '%')
+    ORDER BY id DESC
+    `,
+    [normalizedVendor, normalizedVendor, normalizedVendor]
+  );
+
+  return rows;
+};
+
 export const upsertConfirmedSupplierMapping = async ({
   supplierId,
   internalProductId,
@@ -490,6 +513,7 @@ export const getActiveSupplierConnectionByProductId = async (productId) => {
 
   return normalizeConnectionRow(rows[0]);
 };
+
 const SupplierModel = {
   createSupplier,
   getSuppliers,
@@ -503,6 +527,7 @@ const SupplierModel = {
   getSupplierProductMappingByProductId,
   getConfirmedMappingByVariantId,
   getSupplierRecommendationByPurchaseHistory,
+  getSupplierRecommendationsByVendor,
   upsertConfirmedSupplierMapping,
   getActiveSupplierConnectionByProductId,
 };

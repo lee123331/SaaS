@@ -211,33 +211,34 @@ export const connectShopifyStoreByCode = async ({ shop, code }) => {
 
 export const fetchProductsFromShopify = async ({ shop, accessToken }) => {
   const query = `
-  query GetProducts($cursor: String) {
-    products(first: 100, after: $cursor) {
-      edges {
-        cursor
-        node {
-          id
-          title
-          status
-          featuredImage {
-            url
-          }
-          variants(first: 100) {
-            edges {
-              node {
-                id
-                sku
-                inventoryQuantity
-              }
+query GetProducts($cursor: String) {
+  products(first: 100, after: $cursor) {
+    edges {
+      cursor
+      node {
+        id
+        title
+        vendor
+        status
+        featuredImage {
+          url
+        }
+        variants(first: 100) {
+          edges {
+            node {
+              id
+              sku
+              inventoryQuantity
             }
           }
         }
       }
-      pageInfo {
-        hasNextPage
-      }
+    }
+    pageInfo {
+      hasNextPage
     }
   }
+}
 `;
 
   let cursor = null;
@@ -309,6 +310,7 @@ await productModel.upsertFromShopify({
   shopifyProductId: parseShopifyGidToNumber(product.id),
   shopifyVariantId: parseShopifyGidToNumber(variant.id),
   title: product.title,
+  vendor: product.vendor || null,
   sku: variant.sku || null,
   stock: Number(variant.inventoryQuantity || 0),
   status: product.status || null,

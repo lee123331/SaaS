@@ -5,6 +5,7 @@ export const upsertFromShopify = async ({
   shopifyProductId,
   shopifyVariantId,
   title,
+  vendor,
   sku,
   stock,
   status,
@@ -16,14 +17,16 @@ export const upsertFromShopify = async ({
       shopify_product_id,
       shopify_variant_id,
       title,
+      vendor,
       sku,
       stock,
       status,
       image_url
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON DUPLICATE KEY UPDATE
       title = VALUES(title),
+      vendor = VALUES(vendor),
       sku = VALUES(sku),
       stock = VALUES(stock),
       status = VALUES(status),
@@ -36,6 +39,7 @@ export const upsertFromShopify = async ({
     shopifyProductId,
     shopifyVariantId,
     title,
+    vendor || null,
     sku,
     stock,
     status,
@@ -53,6 +57,7 @@ export const getAllProducts = async () => {
       shopify_product_id,
       shopify_variant_id,
       title,
+      vendor,
       sku,
       stock,
       status,
@@ -75,6 +80,7 @@ export const getProductById = async (id) => {
       shopify_product_id,
       shopify_variant_id,
       title,
+      vendor,
       sku,
       stock,
       status,
@@ -98,6 +104,7 @@ export const getProductByVariantId = async (variantId) => {
       shopify_product_id,
       shopify_variant_id,
       title,
+      vendor,
       sku,
       stock,
       status,
