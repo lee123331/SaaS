@@ -6,6 +6,15 @@ export const getProducts = async () => {
   return products.map((product) => ({
     id: product.id,
     name: product.title,
+
+    shopify_product_id: product.shopify_product_id,
+    shopifyProductId: product.shopify_product_id,
+
+    shopify_variant_id: product.shopify_variant_id,
+    shopifyVariantId: product.shopify_variant_id,
+
+    vendor: product.vendor || null,
+
     sku: product.sku,
     stock: product.stock,
     imageUrl: product.image_url || null,
@@ -23,6 +32,15 @@ export const getProductDetail = async (id) => {
   return {
     id: product.id,
     name: product.title,
+
+    shopify_product_id: product.shopify_product_id,
+    shopifyProductId: product.shopify_product_id,
+
+    shopify_variant_id: product.shopify_variant_id,
+    shopifyVariantId: product.shopify_variant_id,
+
+    vendor: product.vendor || null,
+
     sku: product.sku,
     stock: product.stock,
     imageUrl: product.image_url || null,
