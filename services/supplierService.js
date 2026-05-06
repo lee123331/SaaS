@@ -27,6 +27,7 @@ export const getSupplierById = async (id) => {
 
 export const updateSupplierById = async (id, payload) => {
   const current = await supplierModel.getSupplierById(id);
+
   if (!current) {
     throw new Error("공급처를 찾을 수 없습니다.");
   }
@@ -43,6 +44,7 @@ export const updateSupplierById = async (id, payload) => {
 
 export const saveSupplierConnection = async (supplierId, configJson = {}) => {
   const supplier = await supplierModel.getSupplierById(supplierId);
+
   if (!supplier) {
     throw new Error("공급처를 찾을 수 없습니다.");
   }
@@ -63,11 +65,12 @@ export const getSupplierConnection = async (supplierId) => {
 
 export const createSupplierProductMapping = async (supplierId, payload) => {
   const supplier = await supplierModel.getSupplierById(supplierId);
+
   if (!supplier) {
     throw new Error("공급처를 찾을 수 없습니다.");
   }
 
-  if (!payload?.productId) {
+  if (!payload?.productId && !payload?.product_id && !payload?.internal_product_id) {
     throw new Error("productId는 필수입니다.");
   }
 
@@ -91,28 +94,67 @@ export const getRecommendedSuppliersByVariantId = async (variantId) => {
     throw new Error("variantId가 필요합니다.");
   }
 
-  const product = await productModel.getProductByVariantId(Number(variantId));
+  const numericVariantId = Number(variantId);
+
+  const product = await productModel.getProductByVariantId(numericVariantId);
+
   if (!product) {
     throw new Error("해당 variant 상품을 찾을 수 없습니다.");
   }
 
+  /**
+   * 이미 확정된 매핑이 있으면 추천 후보가 아니라
+   * auto_linked_supplier로 반환한다.
+   */
   const confirmed = await supplierModel.getConfirmedMappingByVariantId(
-    Number(variantId)
+    numericVariantId
   );
 
   if (confirmed) {
     return {
-      variant_id: Number(variantId),
+      variant_id: numericVariantId,
       internal_product_id: product.id,
       internal_sku: product.sku,
+
       auto_linked_supplier: {
+        mapping_id: confirmed.id,
         supplier_id: confirmed.supplierId,
         supplier_name: confirmed.supplierName,
+
+        internal_product_id: confirmed.internalProductId,
+        internal_variant_id: confirmed.internalVariantId,
+        internal_sku: confirmed.internalSku,
+
+        supplier_sku: confirmed.supplierSku,
+        supplier_product_name: confirmed.supplierProductName,
+        min_order_qty: confirmed.minOrderQty,
+
         confidence_score: confirmed.confidenceScore ?? 100,
         source: confirmed.source ?? "confirmed",
         reason: confirmed.reason ?? "confirmed mapping exists",
         mapping_status: confirmed.mappingStatus,
+
+        supplier_status: confirmed.supplierStatus,
+        connection_status: confirmed.connectionStatus,
+
+        contact_name: confirmed.contactName,
+        contact_email: confirmed.contactEmail,
+        contact_phone: confirmed.contactPhone,
+
+        // camelCase 호환
+        mappingId: confirmed.id,
+        supplierId: confirmed.supplierId,
+        supplierName: confirmed.supplierName,
+        internalProductId: confirmed.internalProductId,
+        internalVariantId: confirmed.internalVariantId,
+        internalSku: confirmed.internalSku,
+        supplierSku: confirmed.supplierSku,
+        supplierProductName: confirmed.supplierProductName,
+        minOrderQty: confirmed.minOrderQty,
+        confidenceScore: confirmed.confidenceScore ?? 100,
+        mappingStatus: confirmed.mappingStatus,
       },
+
       recommendations: [],
       status: "ok",
     };
@@ -135,6 +177,12 @@ export const getRecommendedSuppliersByVariantId = async (variantId) => {
       source: "po_history",
       reason: "matched by purchase order history",
       mapping_status: "suggested",
+
+      // camelCase 호환
+      supplierId: item.supplierId,
+      supplierName: item.supplierName,
+      confidenceScore: 70,
+      mappingStatus: "suggested",
     });
   }
 
@@ -147,6 +195,12 @@ export const getRecommendedSuppliersByVariantId = async (variantId) => {
         source: "vendor",
         reason: "matched Shopify vendor",
         mapping_status: "suggested",
+
+        // camelCase 호환
+        supplierId: item.id,
+        supplierName: item.name,
+        confidenceScore: 40,
+        mappingStatus: "suggested",
       });
     }
   }
@@ -156,7 +210,7 @@ export const getRecommendedSuppliersByVariantId = async (variantId) => {
   );
 
   return {
-    variant_id: Number(variantId),
+    variant_id: numericVariantId,
     internal_product_id: product.id,
     internal_sku: product.sku,
     auto_linked_supplier: null,
@@ -166,33 +220,60 @@ export const getRecommendedSuppliersByVariantId = async (variantId) => {
 };
 
 export const confirmSupplierMapping = async (payload) => {
-  const {
-    internal_product_id,
-    internal_variant_id,
-    internal_sku,
-    supplier_id,
-  } = payload;
+  const internalProductId = Number(
+    payload.internal_product_id ??
+      payload.internalProductId ??
+      payload.product_id ??
+      payload.productId
+  );
 
-  if (!internal_product_id || !internal_variant_id || !supplier_id) {
+  const internalVariantId = Number(
+    payload.internal_variant_id ??
+      payload.internalVariantId ??
+      payload.variant_id ??
+      payload.variantId
+  );
+
+  const supplierId = Number(payload.supplier_id ?? payload.supplierId);
+
+  const internalSku =
+    payload.internal_sku ?? payload.internalSku ?? null;
+
+  const supplierSku =
+    payload.supplier_sku ?? payload.supplierSku ?? null;
+
+  const supplierProductName =
+    payload.supplier_product_name ?? payload.supplierProductName ?? null;
+
+  const minOrderQty =
+    payload.min_order_qty ?? payload.minOrderQty ?? null;
+
+  if (!internalProductId || !internalVariantId || !supplierId) {
     throw new Error(
       "internal_product_id, internal_variant_id, supplier_id는 필수입니다."
     );
   }
 
-  const supplier = await supplierModel.getSupplierBasicById(Number(supplier_id));
+  const supplier = await supplierModel.getSupplierBasicById(supplierId);
+
   if (!supplier) {
     throw new Error("존재하지 않는 공급처입니다.");
   }
 
   const result = await supplierModel.upsertConfirmedSupplierMapping({
-    supplierId: Number(supplier_id),
-    internalProductId: Number(internal_product_id),
-    internalVariantId: Number(internal_variant_id),
-    internalSku: internal_sku || null,
-    productId: Number(internal_product_id),
-    source: "manual",
-    confidenceScore: 100,
-    reason: "confirmed by user",
+    supplierId,
+    internalProductId,
+    internalVariantId,
+    internalSku,
+    supplierSku,
+    supplierProductName,
+    minOrderQty,
+    productId: internalProductId,
+    source: payload.source ?? payload.order_method ?? "manual",
+    confidenceScore: Number(
+      payload.confidence_score ?? payload.confidenceScore ?? 100
+    ),
+    reason: payload.reason ?? "confirmed by user",
   });
 
   return {
@@ -200,6 +281,13 @@ export const confirmSupplierMapping = async (payload) => {
     supplier_id: supplier.id,
     supplier_name: supplier.name,
     mapping_status: "confirmed",
+
+    // camelCase 호환
+    mappingId: result.id,
+    supplierId: supplier.id,
+    supplierName: supplier.name,
+    mappingStatus: "confirmed",
+
     message: "공급처가 확정되었습니다.",
   };
 };
@@ -209,27 +297,81 @@ export const getConfirmedSupplierByVariantId = async (variantId) => {
     throw new Error("variantId가 필요합니다.");
   }
 
+  const numericVariantId = Number(variantId);
+
   const mapping = await supplierModel.getConfirmedMappingByVariantId(
-    Number(variantId)
+    numericVariantId
   );
 
   if (!mapping) {
     return null;
   }
 
+  /**
+   * 프론트가 새로고침 후에도 "이미 연결됨" 카드를 복원할 수 있도록
+   * snake_case와 camelCase를 모두 내려준다.
+   */
   return {
+    connected: true,
+
     mapping_id: mapping.id,
     supplier_id: mapping.supplierId,
     supplier_name: mapping.supplierName,
+
+    internal_product_id: mapping.internalProductId,
+    internal_variant_id: mapping.internalVariantId,
+    internal_sku: mapping.internalSku,
+
+    supplier_sku: mapping.supplierSku,
+    supplier_product_name: mapping.supplierProductName,
+    min_order_qty: mapping.minOrderQty,
+
     mapping_status: mapping.mappingStatus,
     confidence_score: mapping.confidenceScore,
     source: mapping.source,
     reason: mapping.reason,
+
+    supplier_status: mapping.supplierStatus,
+    connection_status: mapping.connectionStatus,
+
+    contact_name: mapping.contactName,
+    contact_email: mapping.contactEmail,
+    contact_phone: mapping.contactPhone,
+
+    created_at: mapping.createdAt,
+    updated_at: mapping.updatedAt,
+
+    // camelCase 호환
+    mappingId: mapping.id,
+    supplierId: mapping.supplierId,
+    supplierName: mapping.supplierName,
+
+    internalProductId: mapping.internalProductId,
+    internalVariantId: mapping.internalVariantId,
+    internalSku: mapping.internalSku,
+
+    supplierSku: mapping.supplierSku,
+    supplierProductName: mapping.supplierProductName,
+    minOrderQty: mapping.minOrderQty,
+
+    mappingStatus: mapping.mappingStatus,
+    confidenceScore: mapping.confidenceScore,
+
+    supplierStatus: mapping.supplierStatus,
+    connectionStatus: mapping.connectionStatus,
+
+    contactName: mapping.contactName,
+    contactEmail: mapping.contactEmail,
+    contactPhone: mapping.contactPhone,
+
+    createdAt: mapping.createdAt,
+    updatedAt: mapping.updatedAt,
   };
 };
 
 export const createOrderDraft = async (supplierId) => {
   const supplier = await supplierModel.getSupplierById(supplierId);
+
   if (!supplier) {
     throw new Error("공급처를 찾을 수 없습니다.");
   }
@@ -253,11 +395,23 @@ export const createOrderDraft = async (supplierId) => {
     supplierProductName: mapping.supplierProductName,
     minOrderQty: mapping.minOrderQty,
     mappingStatus: mapping.mappingStatus,
+
+    // snake_case 호환
+    product_id: mapping.productId,
+    internal_product_id: mapping.internalProductId,
+    internal_variant_id: mapping.internalVariantId,
+    internal_sku: mapping.internalSku,
+    supplier_sku: mapping.supplierSku,
+    supplier_product_name: mapping.supplierProductName,
+    min_order_qty: mapping.minOrderQty,
+    mapping_status: mapping.mappingStatus,
   }));
 
   return {
     supplierId,
     supplierName: supplier.name,
+    supplier_id: supplierId,
+    supplier_name: supplier.name,
     items,
     message: "발주 초안이 생성되었습니다.",
   };
