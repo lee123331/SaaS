@@ -160,55 +160,90 @@ export const getRecommendedSuppliersByVariantId = async (variantId) => {
     };
   }
 
-  const poRecommendations =
-    await supplierModel.getSupplierRecommendationByPurchaseHistory(product.id);
+ const poRecommendations =
+  await supplierModel.getSupplierRecommendationByPurchaseHistory(product.id);
 
-  const vendorRecommendations = product.vendor
-    ? await supplierModel.getSupplierRecommendationsByVendor(product.vendor)
-    : [];
+const vendorRecommendations = product.vendor
+  ? await supplierModel.getSupplierRecommendationsByVendor(product.vendor)
+  : [];
 
-  const merged = new Map();
+const activeSuppliers =
+  await supplierModel.getActiveSuppliersForRecommendation();
 
-  for (const item of poRecommendations) {
-    merged.set(item.supplierId, {
-      supplier_id: item.supplierId,
-      supplier_name: item.supplierName,
-      confidence_score: 70,
-      source: "po_history",
-      reason: "matched by purchase order history",
+const merged = new Map();
+
+for (const item of poRecommendations) {
+  merged.set(item.supplierId, {
+    supplier_id: item.supplierId,
+    supplier_name: item.supplierName,
+    confidence_score: 70,
+    source: "po_history",
+    reason: "matched by purchase order history",
+    mapping_status: "suggested",
+
+    supplierId: item.supplierId,
+    supplierName: item.supplierName,
+    confidenceScore: 70,
+    mappingStatus: "suggested",
+  });
+}
+
+for (const item of vendorRecommendations) {
+  if (!merged.has(item.id)) {
+    merged.set(item.id, {
+      supplier_id: item.id,
+      supplier_name: item.name,
+      confidence_score: 50,
+      source: "vendor",
+      reason: "matched Shopify vendor",
       mapping_status: "suggested",
 
-      // camelCase 호환
-      supplierId: item.supplierId,
-      supplierName: item.supplierName,
-      confidenceScore: 70,
+      supplierId: item.id,
+      supplierName: item.name,
+      confidenceScore: 50,
       mappingStatus: "suggested",
     });
   }
+}
 
-  for (const item of vendorRecommendations) {
-    if (!merged.has(item.id)) {
-      merged.set(item.id, {
-        supplier_id: item.id,
-        supplier_name: item.name,
-        confidence_score: 40,
-        source: "vendor",
-        reason: "matched Shopify vendor",
-        mapping_status: "suggested",
+/**
+ * fallback 추천:
+ * 이미 등록된 active 공급처는 다른 상품에서도 추천 후보로 보여준다.
+ */
+for (const item of activeSuppliers) {
+  if (!merged.has(item.id)) {
+    merged.set(item.id, {
+      supplier_id: item.id,
+      supplier_name: item.name,
+      confidence_score: 30,
+      source: "registered_supplier",
+      reason: "registered active supplier",
+      mapping_status: "suggested",
 
-        // camelCase 호환
-        supplierId: item.id,
-        supplierName: item.name,
-        confidenceScore: 40,
-        mappingStatus: "suggested",
-      });
-    }
+      provider_type: item.providerType,
+      supplier_status: item.status,
+      connection_status: item.connectionStatus,
+      contact_name: item.contactName,
+      contact_email: item.contactEmail,
+      contact_phone: item.contactPhone,
+
+      supplierId: item.id,
+      supplierName: item.name,
+      confidenceScore: 30,
+      mappingStatus: "suggested",
+      providerType: item.providerType,
+      supplierStatus: item.status,
+      connectionStatus: item.connectionStatus,
+      contactName: item.contactName,
+      contactEmail: item.contactEmail,
+      contactPhone: item.contactPhone,
+    });
   }
+}
 
-  const recommendations = Array.from(merged.values()).sort(
-    (a, b) => b.confidence_score - a.confidence_score
-  );
-
+const recommendations = Array.from(merged.values()).sort(
+  (a, b) => b.confidence_score - a.confidence_score
+);
   return {
     variant_id: numericVariantId,
     internal_product_id: product.id,

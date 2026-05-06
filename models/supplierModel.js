@@ -588,6 +588,31 @@ const normalizeMappingPayload = (payload = {}) => {
     reason: payload.reason ?? null,
   };
 };
+
+export const getActiveSuppliersForRecommendation = async () => {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      id,
+      name,
+      providerType,
+      status,
+      connectionStatus,
+      contactName,
+      contactEmail,
+      contactPhone,
+      notes,
+      createdAt,
+      updatedAt
+    FROM suppliers
+    WHERE status = 'active'
+    ORDER BY updatedAt DESC
+    LIMIT 20
+    `
+  );
+
+  return rows;
+};
 export default {
   createSupplier,
   getSuppliers,
@@ -603,3 +628,4 @@ export default {
   getSupplierRecommendationByPurchaseHistory,
   getSupplierRecommendationsByVendor,
 };
+
