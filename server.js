@@ -28,42 +28,53 @@ const allowedExactOrigins = [
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
 
-  if (allowedExactOrigins.includes(origin)) {
-    return true;
-  }
+  try {
+    const { hostname } = new URL(origin);
 
-  if (origin.endsWith(".vercel.app")) {
-    return true;
-  }
+    if (allowedExactOrigins.includes(origin)) {
+      return true;
+    }
 
-  return false;
+    // Vercel preview deployment 전체 허용
+    if (hostname === "vercel.app" || hostname.endsWith(".vercel.app")) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Invalid origin:", origin);
+    return false;
+  }
 };
 
 const corsOptions = {
   origin(origin, callback) {
+    console.log("[CORS] Origin:", origin);
+
     if (isAllowedOrigin(origin)) {
       return callback(null, true);
     }
 
-    console.error("Blocked by CORS:", origin);
+    console.error("[CORS] Blocked:", origin);
+
+    // 테스트 단계에서는 서버 에러로 넘기지 말고 CORS만 거절
     return callback(null, false);
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Accept",
+    "Origin",
+    "X-Requested-With",
+  ],
   credentials: false,
   optionsSuccessStatus: 204,
 };
-
 app.use(cors(corsOptions));
 
-app.options("/auth/shopify", cors(corsOptions));
-app.options("/store/oauth/callback", cors(corsOptions));
-app.options("/store/:id/sync", cors(corsOptions));
-app.options("/dashboard/metrics", cors(corsOptions));
-app.options("/alerts", cors(corsOptions));
-app.options("/products", cors(corsOptions));
-app.options("/orders/approve", cors(corsOptions));
-
+// 모든 preflight 요청 처리
+app.options(/.*/, cors(corsOptions));
 app.use(express.json());
 
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY;
@@ -97,7 +108,11 @@ const isAllowedReturnUrl = (returnUrl) => {
 };
 
 app.get("/", (req, res) => {
-  res.json({ message: "Backend server is running", version: "test-2026-04-02" });
+  res.json({
+    message: "Backend server is running",
+    version: "cors-fix-2026-05-06",
+    allowedOrigins: allowedExactOrigins,
+  });
 });
 
 app.get("/auth/shopify", (req, res) => {
@@ -152,6 +167,14 @@ app.use("/suppliers", supplierRoutes);
 
 app.use((err, req, res, next) => {
   console.error("Server error:", err);
+
+  if (err.message && err.message.startsWith("CORS blocked")) {
+    return res.status(403).json({
+      message: "CORS blocked",
+      origin: req.headers.origin,
+    });
+  }
+
   return res.status(500).json({
     message: err.message || "Internal server error",
   });
