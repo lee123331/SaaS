@@ -588,3 +588,18 @@ const normalizeMappingPayload = (payload = {}) => {
     reason: payload.reason ?? null,
   };
 };
+export default {
+  createSupplier,
+  getSuppliers,
+  getSupplierById,
+  getSupplierBasicById,
+  updateSupplierById,
+  upsertSupplierConnection,
+  getSupplierConnection,
+  createSupplierProductMapping,
+  getSupplierProductMappings,
+  getConfirmedMappingByVariantId,
+  upsertConfirmedSupplierMapping,
+  getSupplierRecommendationByPurchaseHistory,
+  getSupplierRecommendationsByVendor,
+};
